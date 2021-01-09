@@ -1,2 +1,2 @@
 # SKIcalculus
-Playground for SKI combinator calculus
+Playground for SKI combinator calculus and lambda calc
