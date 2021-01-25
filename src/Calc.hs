@@ -72,7 +72,6 @@ data SKI e where
   K :: SKI (a -> b -> a)
   I :: SKI (a -> a)
   (:-) :: SKI (a -> b) -> SKI a -> SKI b
-  (:+) :: SKI a -> SKI b -> SKI (a -> b)
 
 -- Show instance to transform to function encoding
 instance Show (SKI e) where
@@ -113,6 +112,8 @@ example :: Int
 example = decode $ chalf $ (e 2 @* e 2) @^ (e 3 @+ e 5)
 
 
+-- For more functions, write them in lambda cal and mechanically transform:
+-- https://en.wikipedia.org/wiki/Combinatory_logic#Completeness_of_the_S-K_basis
 
 
 -- Scratchpad
