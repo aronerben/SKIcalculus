@@ -1,0 +1,10 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "SKIcalculus:lib"
+
+    - path: "./app/Main.hs"
+      component: "SKIcalculus:exe:SKIcalculus-exe"
+
+    - path: "./test"
+      component: "SKIcalculus:test:SKIcalculus-test"
