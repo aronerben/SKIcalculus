@@ -22,6 +22,9 @@ t = k
 f :: a -> b -> b
 f x = s k (k i x)
 
+decodeBool :: (Bool -> Bool -> Bool) -> Bool
+decodeBool fn = fn True False
+
 -- negate
 n :: ((a -> b -> b) -> (c -> d -> c) -> e) -> e
 n = s (s i (k f)) (k t)
@@ -52,16 +55,16 @@ czero = k i
 
 -- s is our applicative <*>
 -- (s compose fstack f) nr =
--- ((compose f) (fstack f)) nr =
+-- (compose f (fstack f)) nr =
 -- (f . (fstack f)) nr =
 -- fstack is the function composition stack which collapses after s combinator is applied
 -- (f . (f . f ... f)) nr =
-csucc ::  ((b -> c) -> a -> b) -> (b -> c) -> a -> c
+csucc :: ((b -> c) -> a -> b) -> (b -> c) -> a -> c
 csucc = s (s (k s) k)
 
 encode :: Int -> (a -> a) -> a -> a
 encode 0 = czero
-encode n = csucc $ encode (n-1)
+encode n = csucc $ encode (n - 1)
 
 decode :: ((Int -> Int) -> Int -> a) -> a
 decode fn = fn succ 0
@@ -75,13 +78,15 @@ data SKI e where
 
 -- Show instance to transform to function encoding
 instance Show (SKI e) where
-   show S = "s"
-   show K = "k"
-   show I = "i"
-   show (a :- b) = "(" ++ show a ++ " " ++ show b ++ ")"
+  show S = "s"
+  show K = "k"
+  show I = "i"
+  show (a :- b) = "(" ++ show a ++ " " ++ show b ++ ")"
 
 czero' = K :- I
+
 csucc' = S :- (S :- (K :- S) :- K)
+
 encode' 0 = czero'
 encode' n = csucc' :- encode' (pred n)
 
@@ -103,44 +108,138 @@ cexp = s (s (k (s (k s) k)) s) (k k) i
 chalf = s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k)
 
 e = encode
+
 (@+) = cadd
+
 (@*) = cmul
+
 (@^) = cexp
 
 -- (2*2)^(3+5) * 0.5 = 4^8 * 0.5 = 32768
 example :: Int
 example = decode $ chalf $ (e 2 @* e 2) @^ (e 3 @+ e 5)
 
-
 -- For more functions, write them in lambda cal and mechanically transform:
 -- https://en.wikipedia.org/wiki/Combinatory_logic#Completeness_of_the_S-K_basis
 
+-- Pairs and lists
+pair = \x y z -> z x y
 
--- Scratchpad
--- data SKI = S (SKI, SKI, SKI) | K (SKI, SKI) | I SKI | V
---   deriving (Show)
+first = \p -> p (\x y -> x)
 
+second = \p -> p (\x y -> y)
 
--- -- eval (I x) = eval x
--- -- eval (K x y) = eval x
--- -- -- eval (S x y z)
+(.:) = pair
 
--- data SKI2 = K2 (SKI2 -> SKI2) | I2 SKI2
+infixr 5 .:
 
--- data SKI3 ph where
---   K3 :: SKI3 (a -> b -> a)
---   I3 :: SKI3 (a -> a)
---   (:$) :: SKI3 (a -> b) -> SKI3 a -> SKI3 b
+head = first
 
+tl = second
 
--- data SKI4 = S4 | K4 | I4
---   deriving (Show)
+nil = f
 
--- data SKI5 = S5 SKI5 SKI5 SKI5 | K5 SKI5 SKI5 | I5 SKI5 | V5
---   deriving (Show)
+isnil = \l -> l (\h t d -> f) t
 
--- newtype Mu a = Mu (Mu a -> a)
--- y f = (\h -> h $ Mu h) (\x -> f . (\(Mu g) -> g) x $ x)
+-- System F compatible encoding
 
--- data SKI6 = S6 | K6 | I6 | T6 (SKI6, SKI6)
---   deriving (Show)
+nil' = \c n -> n
+
+-- T[\c -> \n -> n]
+-- K T[\n -> n]      R3
+-- K I               R4
+
+nilSKI = k i
+
+pair' = \h t c n -> c h (t c n)
+
+-- T[\h -> \t -> \c -> \n -> c h (t c n)]
+-- T[\h -> T[\t -> T[\c -> T[\n -> c h (t c n)]]]]                        R555
+-- T[\h -> T[\t -> T[\c -> S T[\n -> c h] T[\n -> t c n]]]]               R6
+-- T[\h -> T[\t -> T[\c -> S (K (c h)) T[\n -> t c n]]]]                  R3211
+-- T[\h -> T[\t -> T[\c -> S (K (c h)) (S T[\n -> t c] T[\n -> n])]]]     R6
+-- T[\h -> T[\t -> T[\c -> S (K (c h)) (S T[\n -> t c] I)]]]              R4
+-- T[\h -> T[\t -> T[\c -> S (K (c h)) (S (K (t c)) I)]]]                 R3211
+-- pair2 = \h t c -> s (k (c h)) (s (k (t c)) i) works
+-- T[\h -> T[\t -> S T[\c -> S (K (c h))] T[\c -> (S (K (t c)) I)]]]     R6
+-- T[\h -> T[\t -> S (S T[\c -> S] T[\c -> (K (c h))]) T[\c -> (S (K (t c)) I)]]]     R6
+-- T[\h -> T[\t -> S (S (K S) T[\c -> (K (c h))]) T[\c -> (S (K (t c)) I)]]]     R31
+-- T[\h -> T[\t -> S (S (K S) (S T[\c -> K] T[\c -> (c h)])) T[\c -> (S (K (t c)) I)]]]     R6
+-- T[\h -> T[\t -> S (S (K S) (S (K K) T[\c -> (c h)])) T[\c -> (S (K (t c)) I)]]]     R31
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S T[\c -> c] T[\c -> h]))) T[\c -> (S (K (t c)) I)]]]     R6
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) T[\c -> (S (K (t c)) I)]]]     R431
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S T[\c -> S (K (t c))] T[\c -> I])]]     R6
+-- pair2 = \h t -> s (s (k s) (s (k k) (s i (k h)))) (s (\c -> s (k (t c))) (\c -> i)) works
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S T[\c -> S (K (t c))] (K I))]]     R31
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S T[\c -> S] T[\c -> (K (t c))]) (K I))]]   R6
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) T[\c -> (K (t c))]) (K I))]]   R31
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) (S T[\c -> K] T[\c -> (t c)])) (K I))]]   R6
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) (S (K K) T[\c -> (t c)])) (K I))]]   R31
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) (S (K K) (S T[\c -> t] T[\c -> c]))) (K I))]]   R6
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) (S (K K) (S (K t) T[\c -> c]))) (K I))]]   R31
+-- T[\h -> T[\t -> S (S (K S) (S (K K) (S I (K h)))) (S (S (K S) (S (K K) (S (K t) I))) (K I))]]   R4
+-- T[\h -> S T[\t -> S (S (K S) (S (K K) (S I (K h))))] T[\t -> (S (S (K S) (S (K K) (S (K t) I))) (K I))]]   R6
+-- pair2 = \h -> s (\t -> s (s (k s) (s (k k) (s i (k h))))) (\t -> (s (s (k s) (s (k k) (s (k t) i))) (k i))) works
+-- T[\h -> S T[\t -> S (S (K S) (S (K K) (S I (K h))))] T[\t -> (S (S (K S) (S (K K) (S (K t) I))) (K I))]]   R6
+-- here can reduce first term either via application R6 or just constant R3, we do R3
+-- T[\h -> S (K (S (S (K S) (S (K K) (S I (K h)))))) T[\t -> (S (S (K S) (S (K K) (S (K t) I))) (K I))]]   R3212212112212112211211
+
+-- reduce T[\t -> (S (S (K S) (S (K K) (S (K t) I))) (K I))]
+-- T[\t -> S (S (K S) (S (K K) (S (K t) I))) (K I)]
+-- S T[\t -> S (S (K S) (S (K K) (S (K t) I)))] T[\t -> (K I)]  R6
+-- S T[\t -> S (S (K S) (S (K K) (S (K t) I)))] (K (K I))      R3211
+-- S (S T[\t -> S] T[\t -> (S (K S) (S (K K) (S (K t) I)))]) (K (K I))      R6
+-- S (S (K S) T[\t -> (S (K S) (S (K K) (S (K t) I)))]) (K (K I))      R31
+-- S (S (K S) (S T[\t -> S (K S)] T[\t -> (S (K K) (S (K t) I))])) (K (K I))      R6
+-- S (S (K S) (S (K (S (K S))) T[\t -> (S (K K) (S (K t) I))])) (K (K I))      R321211
+-- S (S (K S) (S (K (S (K S))) (S T[\t -> S (K K)] T[\t -> (S (K t) I)]))) (K (K I))      R6
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) T[\t -> (S (K t) I)]))) (K (K I))      R321211
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S T[\t -> S (K t)] T[\t -> I])))) (K (K I))      R6
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S T[\t -> S (K t)] (K I))))) (K (K I))      R31
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (S T[\t -> S] T[\t -> (K t)]) (K I))))) (K (K I))      R6
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (S (K S) T[\t -> (K t)]) (K I))))) (K (K I))      R31
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (S (K S) (S T[\t -> K] T[\t -> t])) (K I))))) (K (K I))      R6
+-- S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (S (K S) (S (K K) I)) (K I))))) (K (K I))      R314
+-- foo = S (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (S (K S) (S (K K) I)) (K I))))) (K (K I))
+
+-- back to og term, reduce T[\h -> S (K (S (S (K S) (S (K K) (S I (K h)))))) foo
+
+-- pair2 = \h -> s (k (s (s (k s) (s (k k) (s i (k h)))))) foo
+--   where
+--     foo = s (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (s (k s) (s (k k) i)) (k i))))) (k (k i))
+-- works
+
+-- T[\h -> S (K (S (S (K S) (S (K K) (S I (K h)))))) foo]
+-- S T[\h -> S (K (S (S (K S) (S (K K) (S I (K h))))))] T[\h -> foo]  R6
+-- S T[\h -> S (K (S (S (K S) (S (K K) (S I (K h))))))] (K foo)  R3 and a bunch of R12
+-- S (S T[\h -> S] T[\h -> (K (S (S (K S) (S (K K) (S I (K h))))))]) (K foo)  R6
+-- S (S (K S) T[\h -> (K (S (S (K S) (S (K K) (S I (K h))))))]) (K foo)  R31
+-- S (S (K S) (S T[\h -> K] T[\h -> (S (S (K S) (S (K K) (S I (K h)))))])) (K foo)  R6
+-- S (S (K S) (S (K K) T[\h -> (S (S (K S) (S (K K) (S I (K h)))))])) (K foo)  R31
+-- S (S (K S) (S (K K) (S T[\h -> S] T[\h -> (S (K S) (S (K K) (S I (K h))))]))) (K foo)  R6
+-- S (S (K S) (S (K K) (S (K S) T[\h -> (S (K S) (S (K K) (S I (K h))))]))) (K foo)  R31
+-- S (S (K S) (S (K K) (S (K S) (S T[\h -> S (K S)] T[\h -> (S (K K) (S I (K h)))])))) (K foo)  R6
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) T[\h -> (S (K K) (S I (K h)))])))) (K foo)  R321211
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S T[\h -> S (K K)] T[\h -> (S I (K h))]))))) (K foo)  R6
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) T[\h -> (S I (K h))]))))) (K foo)  R321211
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S T[\h -> S I] T[\h -> (K h)])))))) (K foo)  R6
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) T[\h -> (K h)])))))) (K foo)  R3211
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) (S T[\h -> K] T[\h -> h]))))))) (K foo)  R6
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) (S (K K) T[\h -> h]))))))) (K foo)  R31
+-- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) (S (K K) I))))))) (K foo)  R4
+
+pairSKI = s (s (k s) (s (k k) (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) (s (k k) i))))))) (k (s (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (s (k s) (s (k k) i)) (k i))))) (k (k i))))
+
+(.:.) = pairSKI
+
+infixr 5 .:.
+
+nrList = map encode [1 .. 5]
+
+-- TODO reduce resulting SKI combinator
+
+chToList :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
+chToList fn = fn (\cur acc -> cur : acc) []
+
+listToCh :: [a] -> ((a -> [a] -> [a]) -> [a] -> [a])
+listToCh xs = foldl (\acc cur -> cur .:. acc) nilSKI xs
