@@ -33,6 +33,7 @@ library
       Paths_SKIcalculus
   hs-source-dirs:
       src
+  ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
     , parsec
