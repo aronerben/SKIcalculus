@@ -5,6 +5,7 @@
 
 module Core (s, k, i, SKI (S, K, I, (:-))) where
 
+import Control.Monad.Writer
 import Data.Text (Text)
 import Text.Parsec
 import Text.Parsec.Text (Parser)
@@ -47,6 +48,7 @@ reduce (S :- x :- y :- z) = reduce (x :- z :- (y :- z))
 reduce (l :- r) = reduce l :- reduce r
 
 -- Lambda calculus to SKI
+-- TODO Use catamorphisms Expr (SKI e) -> SKI e, might not be possible
 data Expr
   = Var String
   | Abs String Expr
@@ -54,7 +56,24 @@ data Expr
   | S'
   | K'
   | I'
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Expr where
+  show (Var v) = v
+  show (Abs v e) = "/" ++ v ++ "." ++ show e
+  show (App e1 e2) = "(" ++ show e1 ++ " " ++ show e2 ++ ")"
+  show S' = "s"
+  show K' = "k"
+  show I' = "i"
+
+-- Pretty print
+pp :: Expr -> String
+pp (Var v) = v
+pp (Abs v e) = printf "/%s.%s" v $ pp e
+pp (App e1 e2) = printf "(%s %s)" (pp e1) (pp e2)
+pp S' = "s"
+pp K' = "k"
+pp I' = "i"
 
 -- Check if variable occurs free
 free :: String -> Expr -> Bool
@@ -67,7 +86,8 @@ free _ I' = False
 
 -- Eta reduction
 etas :: Expr -> Expr
-etas = (until =<< ((==) =<<)) eta
+-- Reduce until reduction does not change anymore
+etas = until =<< ((==) =<<) $ eta
   where
     eta :: Expr -> Expr
     -- Reduce if form is \x. F x and x does not occur free in F
@@ -79,32 +99,57 @@ etas = (until =<< ((==) =<<)) eta
     eta K' = K'
     eta I' = I'
 
--- TODO maybe use GADT to encode SKI into Expr?
--- TODO run etas
 -- TODO write tests
 -- TODO mention in blogpost that there are many more bracket abstractions
--- TODO use Writer to see which rule applied
-transform :: Expr -> Expr
--- Case 1
-transform x@(Var _) = x
-transform S' = S'
-transform K' = K'
-transform I' = I'
--- Case 2
-transform (App e1 e2) = App (transform e1) (transform e2)
--- Case 3
-transform (Abs v e) | not (free v e) = App K' (transform e)
--- Case 4
-transform (Abs v1 (Var v2)) | v1 == v2 = I'
--- Case 5
-transform (Abs v1 (Abs v2 e))
-  | free v1 e = transform $ Abs v1 $ transform $ Abs v2 e
--- Case 6
-transform (Abs v (App e1 e2)) =
-  App (App S' $ transform $ Abs v e1) $ transform $ Abs v e2
-transform _ = error "Should not happen"
+transform :: (Expr -> Expr) -> Expr -> Writer [(Int, Expr)] Expr
+transform fn expr' = do
+  let expr'' = etas expr'
+  -- Case 0 is eta reductions
+  when (expr'' /= expr') $ tell [(0, fn expr'')]
+  transform' $ etas expr'
   where
-    transform' = etas . transform
+    transform' :: Expr -> Writer [(Int, Expr)] Expr
+    -- Case 1
+    transform' x@(Var _) = tell [(1, fn x)] >> return x
+    transform' S' = tell [(1, fn S')] >> return S'
+    transform' K' = tell [(1, fn K')] >> return K'
+    transform' I' = tell [(1, fn I')] >> return I'
+    -- Case 2'
+    transform' (App e1 e2) = do
+      let rule = App
+      tell [(2, fn $ rule e1 e2)]
+      e1' <- transform (\e -> fn $ rule e e2) e1
+      e2' <- transform (fn . rule e1') e2
+      return $ rule e1' e2'
+    -- Case 3'
+    transform' (Abs v e) | not (free v e) = do
+      let rule = App K'
+      tell [(3, fn $ rule e)]
+      rule <$> transform (fn . rule) e
+    -- Case 4'
+    transform' (Abs v1 (Var v2))
+      | v1 == v2 =
+        tell [(4, fn I')] >> return I'
+    -- Case 5'
+    transform' (Abs v1 (Abs v2 e))
+      | free v1 e = do
+        let rule = Abs v1
+        tell [(5, fn $ rule $ Abs v2 e)]
+        abse <- transform (fn . rule) $ Abs v2 e
+        transform fn $ Abs v1 abse
+    -- Case 6'
+    transform' (Abs v (App e1 e2)) = do
+      let rule e1' = App (App S' e1')
+      tell [(6, fn $ rule (Abs v e1) (Abs v e2))]
+      abse1 <- transform (\e' -> fn $ rule e' $ Abs v e2) $ Abs v e1
+      abse2 <- transform (fn . rule abse1) $ Abs v e2
+      return $ rule abse1 abse2
+    transform' _ = error "Should not happen"
+
+run :: Text -> IO ()
+run expr' = case (snd <$> runWriter) . transform id <$> parse' expr' of
+  Left err -> print err
+  Right vs -> mapM_ print vs
 
 -- Parser
 parens :: Parser a -> Parser a
@@ -138,11 +183,4 @@ expr =
 parse' :: Text -> Either ParseError Expr
 parse' = parse (expr <* eof) ""
 
--- Pretty print
-pp :: Expr -> String
-pp (Var v) = v
-pp (Abs v e) = printf "/%s.%s" v $ pp e
-pp (App e1 e2) = printf "(%s %s)" (pp e1) (pp e2)
-pp S' = "s"
-pp K' = "k"
-pp I' = "i"
+-- TODO turn datastructure into a function, church encode it

@@ -28,6 +28,9 @@ library
       Bool
       Calc
       Core
+      Core2
+      Hello
+      List
       Nat
   other-modules:
       Paths_SKIcalculus
@@ -36,7 +39,11 @@ library
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
+    , containers
+    , free
+    , mtl
     , parsec
+    , recursion-schemes
     , text
   default-language: Haskell2010
 
@@ -48,7 +55,11 @@ executable SKIcalculus-exe
   build-depends:
       SKIcalculus
     , base >=4.7 && <5
+    , containers
+    , free
+    , mtl
     , parsec
+    , recursion-schemes
     , text
   default-language: Haskell2010
 
@@ -61,6 +72,10 @@ test-suite SKIcalculus-test
   build-depends:
       SKIcalculus
     , base >=4.7 && <5
+    , containers
+    , free
+    , mtl
     , parsec
+    , recursion-schemes
     , text
   default-language: Haskell2010

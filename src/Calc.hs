@@ -2,6 +2,8 @@
 
 module Calc where
 
+import Data.Char
+
 -- SKI combinators
 s :: (a -> b -> c) -> (a -> b) -> a -> c
 s x y z = x z (y z)
@@ -123,11 +125,11 @@ example = decode $ chalf $ (e 2 @* e 2) @^ (e 3 @+ e 5)
 -- https://en.wikipedia.org/wiki/Combinatory_logic#Completeness_of_the_S-K_basis
 
 -- Pairs and lists
-pair = \x y z -> z x y
+pair x y z = z x y
 
-first = \p -> p (\x y -> x)
+first p = p (const)
 
-second = \p -> p (\x y -> y)
+second p = p (\x y -> y)
 
 (.:) = pair
 
@@ -139,11 +141,11 @@ tl = second
 
 nil = f
 
-isnil = \l -> l (\h t d -> f) t
+isnil l = l (\h t d -> f) t
 
 -- System F compatible encoding
 
-nil' = \c n -> n
+nil' c n = n
 
 -- T[\c -> \n -> n]
 -- K T[\n -> n]      R3
@@ -151,7 +153,7 @@ nil' = \c n -> n
 
 nilSKI = k i
 
-pair' = \h t c n -> c h (t c n)
+pair' h t c n = c h (t c n)
 
 -- T[\h -> \t -> \c -> \n -> c h (t c n)]
 -- T[\h -> T[\t -> T[\c -> T[\n -> c h (t c n)]]]]                        R555
@@ -228,18 +230,61 @@ pair' = \h t c n -> c h (t c n)
 -- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) (S (K K) T[\h -> h]))))))) (K foo)  R31
 -- S (S (K S) (S (K K) (S (K S) (S (K (S (K S))) (S (K (S (K K))) (S (K (S I)) (S (K K) I))))))) (K foo)  R4
 
-pairSKI = s (s (k s) (s (k k) (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) (s (k k) i))))))) (k (s (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (s (k s) (s (k k) i)) (k i))))) (k (k i))))
+-- pairSKI = s (s (k s) (s (k k) (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) (s (k k) i))))))) (k (s (s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (s (k s) (s (k k) i)) (k i))))) (k (k i))))
 
+-- SHORTENED BY CORE.RUN
+pairSKI :: a1 -> ((a1 -> b -> c) -> a2 -> b) -> (a1 -> b -> c) -> a2 -> c
+pairSKI = s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) k)))
+
+(.:.) :: a1 -> ((a1 -> b -> c) -> a2 -> b) -> (a1 -> b -> c) -> a2 -> c
 (.:.) = pairSKI
 
 infixr 5 .:.
 
+nrList :: [(a -> a) -> a -> a]
 nrList = map encode [1 .. 5]
 
 -- TODO reduce resulting SKI combinator
 
 chToList :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
-chToList fn = fn (\cur acc -> cur : acc) []
+chToList fn = fn (:) []
 
-listToCh :: [a] -> ((a -> [a] -> [a]) -> [a] -> [a])
-listToCh xs = foldl (\acc cur -> cur .:. acc) nilSKI xs
+listToCh :: [a] -> ((a -> b -> b) -> b -> b)
+listToCh = foldr (.:.) nilSKI
+
+pairSKI' ::
+  SKI
+    (a1 -> ((a1 -> b -> c) -> a2 -> b) -> (a1 -> b -> c) -> a2 -> c)
+pairSKI' = S :- (K :- S) :- (S :- (K :- (S :- (K :- S))) :- (S :- (K :- (S :- (K :- K))) :- (S :- (K :- (S :- I)) :- K)))
+
+nilSKI' :: SKI (b -> a -> a)
+nilSKI' = K :- I
+
+listToCh' :: [SKI a] -> SKI ((a -> b -> b) -> b -> b)
+listToCh' = foldr (\cur acc -> pairSKI' :- cur :- acc) nilSKI'
+
+encode'' :: Char -> SKI ((a -> a) -> a -> a)
+encode'' '\n' = czero'
+encode'' n = csucc' :- encode'' (pred n)
+
+hello :: SKI ((((b1 -> b1) -> b1 -> b1) -> b2 -> b2) -> b2 -> b2)
+hello =
+  listToCh' $
+    map encode'' "Hello, World!\n"
+
+-- foo :: IO ()
+-- foo =
+--   ( listToCh $
+--       map encode'' "Hello, World!\n"
+--   )
+--     (\cur -> (>>) (putChar (cur succ '\n')))
+--     (return ())
+
+-- foo :: IO ()
+-- foo' =
+--   s
+--     (s i (k (s (k (>>)) (s (k putChar) (s (s i (k succ)) (k '\n'))))))
+--     (k (return ()))
+--     ( listToCh $
+--         map encode'' "Hello, World!\n"
+--     )
