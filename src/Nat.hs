@@ -9,8 +9,8 @@ type ChurchNumeral a = (a -> a) -> a -> a
 
 -- Zero
 -- \f -> \x -> x
--- Use https://en.wikipedia.org/wiki/Combinatory_logic#Completeness_of_the_S-K_basis to transform to SKI
 
+-- Use https://en.wikipedia.org/wiki/Combinatory_logic#Completeness_of_the_S-K_basis to transform to SKI
 -- T[\f -> \x -> x]
 -- K T[\x -> x]      by R3
 -- K I               by R4
@@ -23,70 +23,15 @@ czero = k i
 -- One  := \f -> \x -> f x
 -- Two  := \f -> \x -> f (f x)
 -- Succ := \(n : ChurchNumeral a) -> (\f -> \x -> f (n f x))
-
--- T[\n -> \f -> \x -> f (n f x)]
--- T[\n -> T[\f -> \x -> f (n f x)]] by R5
--- T[\n -> T[\f -> T[\x -> f (n f x)]]] by R5
--- T[\n -> T[\f -> (S T[\x -> f] T[\x -> (n f x)])]] by R6
--- T[\n -> T[\f -> (S (K f) T[\x -> (n f x)])]] by R31
--- T[\n -> T[\f -> (S (K f) (S T[\x -> n f] T[\x -> x]))]] by R6
--- T[\n -> T[\f -> (S (K f) (S (K (n f)) T[\x -> x]))]] by R3211
--- T[\n -> T[\f -> (S (K f) (S (K (n f)) I))]] by R4
--- T[\n -> (S T[\f -> S (K f)] T[\f -> (S (K (n f)) I)])] by R6
--- T[\n -> (S (S T[\f -> S] T[\f -> (K f)]) T[\f -> (S (K (n f)) I)])] by R6
--- T[\n -> (S (S (K S) T[\f -> (K f)]) T[\f -> (S (K (n f)) I)])] by R31
--- T[\n -> (S (S (K S) (S T[\f -> K] T[\f -> f])) T[\f -> (S (K (n f)) I)])] by R6
--- T[\n -> (S (S (K S) (S (K K) T[\f -> f])) T[\f -> (S (K (n f)) I)])] by R31
--- T[\n -> (S (S (K S) (S (K K) I)) T[\f -> (S (K (n f)) I)])] by R4
--- T[\n -> (S (S (K S) (S (K K) I)) (S T[\f -> S (K (n f))] T[\f -> I]))] by R6
--- T[\n -> (S (S (K S) (S (K K) I)) (S T[\f -> S (K (n f))] (K I)))] by R31
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S T[\f -> S] T[\f -> (K (n f))]) (K I)))] by R6
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) T[\f -> (K (n f))]) (K I)))] by R31
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) (S T[\f -> K] T[\f -> (n f)])) (K I)))] by R6
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) (S (K K) T[\f -> (n f)])) (K I)))] by R31
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) (S (K K) (S T[\f -> n] T[\f -> f]))) (K I)))] by R6
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) (S (K K) (S (K n) T[\f -> f]))) (K I)))] by R31
--- T[\n -> (S (S (K S) (S (K K) I)) (S (S (K S) (S (K K) (S (K n) I))) (K I)))] by R4
-
--- Alternatively,
--- Succ := \(n : ChurchNumeral a) -> (\f -> f . (n f))
--- Write compose as prefix for simplicity
--- T[\n -> \f -> (.) f (n f)]
--- T[\n -> T[\f -> (.) f (n f)]] by R5
--- T[\n -> (S T[\f -> (.) f] T[\f -> (n f)])] by R6
--- T[\n -> (S T[\f -> (.) f] (S T[\f -> n] T[\f -> f]))] by R6
--- T[\n -> (S T[\f -> (.) f] (S T[\f -> n] I))] by R4
--- T[\n -> (S T[\f -> (.) f] (S (K n) I))] by R31
--- T[\n -> (S (S T[\f -> (.)] T[\f -> f]) (S (K n) I))] by R6
--- T[\n -> (S (S (K (.)) T[\f -> f]) (S (K n) I))] by R31
--- T[\n -> (S (S (K (.)) I) (S (K n) I))] by R4
--- S T[\n -> S (S (K (.)) I)] T[\n -> (S (K n) I)] by R6
--- S (K (S (S (K (.)) I))) T[\n -> (S (K n) I)] by R31
--- S (K (S (S (K (.)) I))) (S T[\n -> S (K n)] T[\n -> I]) by R6
--- S (K (S (S (K (.)) I))) (S T[\n -> S (K n)] (K I)) by R31
--- S (K (S (S (K (.)) I))) (S (S T[\n -> S] T[\n -> (K n)]) (K I)) by R6
--- S (K (S (S (K (.)) I))) (S (S (K S) (S T[\n -> K] T[\n -> n])) (K I)) by R6
--- S (K (S (S (K (.)) I))) (S (S (K S) (S (K K) T[\n -> n])) (K I)) by R31
--- S (K (S (S (K (.)) I))) (S (S (K S) (S (K K) I)) (K I)) by R31
-
--- T[\n -> (S T[\f -> (.) f] T[\f -> (n f)])] by R6
--- T[\n -> (S (.) n)] by eta reduction
--- T[S (.)] by eta reduction
-
-foo = s (k (s (s (k (s (k s) k)) i))) (s (s (k s) (s (k k) i)) (k i))
-
--- foo :- = :- S :- (K :- (S :- (S :- (K :- (S :- (K :- S) :- K)) :- I))) :- (S :- (S :- (K :- S) :- (S :- (K :- K) :- I)) :- (K :- I))
-
+-- Use transformer
 csucc :: ChurchNumeral a -> ChurchNumeral a
 csucc = s (s (k s) k)
 
 -- Readable to Church encoded
--- To encode, "a" can be polymorphic since functions represent numerals regardless of type
 encode :: Int -> ChurchNumeral a
 encode 0 = czero
-encode n = csucc $ encode $ n - 1
+encode n = csucc $ encode $ pred n
 
--- Specifying "a" to Int when interpreting into readable data
 decode :: ChurchNumeral Int -> Int
 decode fn = fn succ 0
 
@@ -96,20 +41,70 @@ three = decode $ csucc $ csucc $ csucc czero
 fiftyfive :: Int
 fiftyfive = decode $ encode 55
 
--- With show instance
+-- To encode, "a" can be polymorphic since functions represent enumerables regardless of type
+encodeEnum :: Enum a => a -> ChurchNumeral a
+encodeEnum n | fromEnum n == 0 = czero
+encodeEnum n = csucc $ encodeEnum $ pred n
 
+decodeEnum :: Enum a => ChurchNumeral a -> a
+decodeEnum fn = fn succ (toEnum 0)
+
+seven :: Int
+seven = decodeEnum $ encodeEnum 7
+
+newline :: Char
+newline = decodeEnum $ encodeEnum '\n'
+
+-- Add
+(@+) :: (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
+(@+) = s (k s) k s (s (k s) k (s (k s) k))
+
+infixl 6 @+
+
+-- Mul
+(@*) :: (b -> c) -> (a -> b) -> a -> c
+(@*) = s (k s) k
+
+infixl 7 @*
+
+-- Exp
+(@^) :: b -> (b -> c) -> c
+(@^) = s (s (k (s (k s) k)) s) (k k) i
+
+infixr 8 @^
+
+-- Halving
+-- https://codegolf.stackexchange.com/questions/198840/ski-calculus-golf-half-of-a-church-numeral
+halve ::
+  ( ( ((((b1 -> c1) -> a1 -> b1) -> a2 -> c2) -> c3) ->
+      (a2 -> ((b1 -> c1) -> a1 -> c1) -> c2) ->
+      c3
+    ) ->
+    (((b2 -> a3 -> a3) -> (b3 -> a4 -> a4) -> c4) -> c4) ->
+    (a5 -> b4 -> a5) ->
+    c5
+  ) ->
+  c5
+halve = s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k)
+
+example :: Int
+example = decode $ halve $ (e 2 @* e 2) @^ (e 3 @+ e 5)
+  where
+    e = encode
+
+-- With show instance
 czero' :: SKI (a -> b -> b)
 czero' = K :- I
 
 csucc' :: SKI (((b -> c) -> a -> b) -> (b -> c) -> a -> c)
 csucc' = S :- (S :- (K :- S) :- K)
 
-encode' :: Int -> SKI ((a -> a) -> a -> a)
-encode' 0 = czero'
-encode' n = csucc' :- encode' (n - 1)
+encodeEnum' :: Enum a => a -> SKI (ChurchNumeral b)
+encodeEnum' n | fromEnum n == 0 = czero'
+encodeEnum' n = csucc' :- encodeEnum' (pred n)
 
-fiftyfive' :: SKI ((a -> a) -> a -> a)
-fiftyfive' = encode' 55
+fiftyfive' :: SKI (ChurchNumeral a)
+fiftyfive' = encodeEnum' (55 :: Int)
 
 -- fiftyfive' in GHCi prints:
 {-
@@ -121,27 +116,52 @@ fiftyfive' = encode' 55
 fiftyfive'' :: Int
 fiftyfive'' = decode $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
--- -- Church numeral operations
--- cadd :: (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
--- cadd = s (k s) k s (s (k s) k (s (k s) k))
+seven' :: SKI (ChurchNumeral a)
+seven' = encodeEnum' (7 :: Int)
 
--- cmul :: (b -> c) -> (a -> b) -> a -> c
--- cmul = s (k s) k
+-- Following printed results from GHCi for pure SKI version
+seven'' :: Int
+seven'' = decodeEnum $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))
 
--- cexp :: b -> (b -> c) -> c
--- cexp = s (s (k (s (k s) k)) s) (k k) i
+newline' :: SKI (ChurchNumeral a)
+newline' = encodeEnum' '\n'
 
--- -- https://codegolf.stackexchange.com/questions/198840/ski-calculus-golf-half-of-a-church-numeral
--- chalf = s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k)
+newline'' :: Char
+newline'' = decodeEnum $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))))))))
 
--- e = encode
+add' :: SKI ((a -> b -> c) -> (a -> d -> b) -> a -> d -> c)
+add' = S :- (K :- S) :- K :- S :- (S :- (K :- S) :- K :- (S :- (K :- S) :- K))
 
--- (@+) = cadd
+mul' :: SKI ((b -> c) -> (a -> b) -> a -> c)
+mul' = S :- (K :- S) :- K
 
--- (@*) = cmul
+exp' :: SKI (b -> (b -> c) -> c)
+exp' = S :- (S :- (K :- (S :- (K :- S) :- K)) :- S) :- (K :- K) :- I
 
--- (@^) = cexp
+halve' ::
+  SKI
+    ( ( ( ((((b1 -> c1) -> a1 -> b1) -> a2 -> c2) -> c3) ->
+          (a2 -> ((b1 -> c1) -> a1 -> c1) -> c2) ->
+          c3
+        ) ->
+        (((b2 -> a3 -> a3) -> (b3 -> a4 -> a4) -> c4) -> c4) ->
+        (a5 -> b4 -> a5) ->
+        c5
+      ) ->
+      c5
+    )
+halve' = S :- (S :- (S :- I :- (K :- (S :- (S :- (K :- S) :- K) :- (K :- (S :- (S :- (K :- S) :- (S :- (K :- K) :- S)) :- (K :- (S :- (K :- K) :- (S :- (S :- (K :- S) :- K))))))))) :- (K :- (S :- (S :- I :- (K :- (K :- I))) :- (K :- (K :- I))))) :- (K :- K)
 
--- -- (2*2)^(3+5) * 0.5 = 4^8 * 0.5 = 32768
--- example :: Int
--- example = decode $ chalf $ (e 2 @* e 2) @^ (e 3 @+ e 5)
+example' :: SKI (ChurchNumeral Int)
+example' = halve' :- exp' :- (mul' :- e (2 :: Int) :- e 2) :- (add' :- e 3 :- e 5)
+  where
+    e = encodeEnum'
+
+-- From GHCi running example'
+example'' :: Int
+example'' = decode $ s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k) (s (s (k (s (k s) k)) s) (k k) i) (s (k s) k (s (s (k s) k) (s (s (k s) k) (k i))) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (k s) k s (s (k s) k (s (k s) k)) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))
+
+-- Represent 55 as 5 * 11 to shorten original
+-- mul' :- (e 5) :- (e 11)
+fiftyfive''' :: Int
+fiftyfive''' = decode $ s (k s) k (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))))))))))

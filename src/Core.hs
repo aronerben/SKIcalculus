@@ -30,6 +30,8 @@ data SKI e where
   -- Corresponds to function application
   (:-) :: SKI (a -> b) -> SKI a -> SKI b
 
+infixl 9 :-
+
 -- Show instance to transform to function encoding
 -- Use this to generate long SKI sequences
 instance Show (SKI e) where

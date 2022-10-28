@@ -14,8 +14,8 @@ pairSKI = s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) k)))
 
 infixr 5 .:.
 
-nrList :: [(a -> a) -> a -> a]
-nrList = map encode [1 .. 5]
+nrList :: [ChurchNumeral Int]
+nrList = map encodeEnum [1 .. 5]
 
 chToList :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
 chToList fn = fn (:) []

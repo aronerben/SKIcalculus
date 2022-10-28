@@ -8,6 +8,7 @@ encode'' :: Char -> SKI ((a -> a) -> a -> a)
 encode'' '\n' = czero'
 encode'' n = csucc' :- encode'' (pred n)
 
+-- TODO encode the chars smarter (32 not naive but as 2^5)
 hello :: SKI ((((b1 -> b1) -> b1 -> b1) -> b2 -> b2) -> b2 -> b2)
 hello =
   listToCh' $
