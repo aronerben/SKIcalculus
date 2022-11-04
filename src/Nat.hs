@@ -7,6 +7,9 @@ import Core
 
 type ChurchNumeral a = (a -> a) -> a -> a
 
+-- Can't use this, as SKI (ChurchNumeral) would need impredicative polymorphism
+-- type ChurchNumeral = forall a. (a -> a) -> a -> a
+
 -- Zero
 -- \f -> \x -> x
 
@@ -14,7 +17,7 @@ type ChurchNumeral a = (a -> a) -> a -> a
 -- T[\f -> \x -> x]
 -- K T[\x -> x]      by R3
 -- K I               by R4
-czero :: a -> b -> b
+czero :: ChurchNumeral a
 czero = k i
 
 -- Succ
@@ -42,12 +45,15 @@ fiftyfive :: Int
 fiftyfive = decode $ encode 55
 
 -- To encode, "a" can be polymorphic since functions represent enumerables regardless of type
-encodeEnum :: Enum a => a -> ChurchNumeral a
+encodeEnum :: Enum a => a -> ChurchNumeral b
 encodeEnum n | fromEnum n == 0 = czero
 encodeEnum n = csucc $ encodeEnum $ pred n
 
 decodeEnum :: Enum a => ChurchNumeral a -> a
 decodeEnum fn = fn succ (toEnum 0)
+
+-- transform :: ChurchNumeral Char -> ChurchNumeral Int
+-- transform nr fn start = _
 
 seven :: Int
 seven = decodeEnum $ encodeEnum 7
@@ -161,7 +167,7 @@ example' = halve' :- exp' :- (mul' :- e (2 :: Int) :- e 2) :- (add' :- e 3 :- e 
 example'' :: Int
 example'' = decode $ s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k) (s (s (k (s (k s) k)) s) (k k) i) (s (k s) k (s (s (k s) k) (s (s (k s) k) (k i))) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (k s) k s (s (k s) k (s (k s) k)) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))
 
--- Represent 55 as 5 * 11 to shorten original
--- mul' :- (e 5) :- (e 11)
+-- Represent 55 as 3^3 * 2 + 1 to shorten original
+-- csucc' (mul' :- (exp' :- (e 3) :- (e 3)) :- (e 2))
 fiftyfive''' :: Int
-fiftyfive''' = decode $ s (k s) k (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))))))))))
+fiftyfive''' = decode $ s (s (k s) k) (s (k s) k (s (s (k (s (k s) k)) s) (k k) i (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))) (s (s (k s) k) (s (s (k s) k) (k i))))

@@ -4,26 +4,22 @@ import Core
 import List
 import Nat
 
-encode'' :: Char -> SKI ((a -> a) -> a -> a)
-encode'' '\n' = czero'
-encode'' n = csucc' :- encode'' (pred n)
-
 -- TODO encode the chars smarter (32 not naive but as 2^5)
 hello :: SKI ((((b1 -> b1) -> b1 -> b1) -> b2 -> b2) -> b2 -> b2)
 hello =
   listToCh' $
-    map encode'' "Hello, World!\n"
+    map encodeEnum' "Hello, World!\n"
+
+printExcl :: IO ()
+printExcl =
+  s
+    (s i (k (s (k (>>)) (s (k putChar) (s (s i (k succ)) (k (toEnum 0)))))))
+    (k (return ()))
+    ( s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) k))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))))))))))))))))))))))))))))) (k i)
+    )
 
 -- foo :: IO ()
 -- foo =
---   ( listToCh $
---       map encode'' "Hello, World!\n"
---   )
---     (\cur -> (>>) (putChar (cur succ '\n')))
---     (return ())
-
--- foo :: IO ()
--- foo' =
 --   s
 --     (s i (k (s (k (>>)) (s (k putChar) (s (s i (k succ)) (k '\n'))))))
 --     (k (return ()))
