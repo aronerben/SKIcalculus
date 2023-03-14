@@ -5,10 +5,17 @@ import List
 import Nat
 
 -- TODO encode the chars smarter (32 not naive but as 2^5)
+-- TODO write about other operators too
 hello :: SKI ((((b1 -> b1) -> b1 -> b1) -> b2 -> b2) -> b2 -> b2)
 hello =
   listToCh' $
     map encodeEnum' "Hello, World!\n"
+
+helloNrs :: [Integer]
+helloNrs =
+  map
+    (decodeEnum . encodeEnum)
+    "Hello, World!\n"
 
 printExcl :: IO ()
 printExcl =

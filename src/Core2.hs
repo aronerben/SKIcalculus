@@ -1,6 +1,11 @@
+{-# LANGUAGE TupleSections #-}
+
 module Core2 where
 
-import Data.List (sortBy)
+import Core (SKI (..))
+import Data.Function (on, (&))
+import Data.List (minimumBy, partition, sortBy)
+import Nat (ChurchNumeral, add', exp', mul')
 import Text.Printf (PrintfArg, PrintfType, printf)
 
 -- data Expr
@@ -117,11 +122,7 @@ data Expr
   | Val Integer
 
 print' ::
-  ( Text.Printf.PrintfArg t1
-  , Text.Printf.PrintfType t2
-  , Show a1
-  , Show a2
-  ) =>
+  (PrintfArg t1, PrintfType t2, Show a1, Show a2) =>
   a1 ->
   t1 ->
   a2 ->
@@ -129,9 +130,9 @@ print' ::
 print' l op r = printf "(%s %s %s)" (show l) op (show r)
 
 instance Show Expr where
-  show (a :+ b) = print' a "+" b
-  show (a :* b) = print' a "*" b
-  show (a :^ b) = print' a "^" b
+  show (a :+ b) = print' a ("+" :: String) b
+  show (a :* b) = print' a ("*" :: String) b
+  show (a :^ b) = print' a ("^" :: String) b
   show (Val i) = show i
 
 -- Do not give precedence on purpose, want left to right evaluation
@@ -152,7 +153,8 @@ rules (_ :^ Val 1) = False
 rules _ = True
 
 vals :: [Integer]
-vals = reverse [1 .. 9]
+-- TODO this is limited
+vals = reverse [1 .. 11]
 
 type Op = Expr -> Expr -> Expr
 
@@ -195,11 +197,91 @@ run n maxOps =
       ]
 
 weight :: Expr -> Integer
-weight (a :+ b) = weight a + weight b + 55
+weight (a :+ b) = weight a + weight b + 39
 weight (a :* b) = weight a + weight b + 19
-weight (a :^ b) = weight a + weight b + 47
+weight (a :^ b) = weight a + weight b + 23
 -- --          Fix Succs      Parens    Spaces
 -- --          V   V          V         V
 weight (Val i) = 5 + i * 17 + i * 2 + i
 
-foo = Prelude.take 10 $ sortBy (\(_, e1) (_, e2) -> compare (weight e1) (weight e2)) $ run 55 5
+min10 :: Integer -> Integer -> [(Integer, Expr)]
+min10 n maxOps = Prelude.take 10 $ sortBy (\(_, e1) (_, e2) -> compare (weight e1) (weight e2)) $ run n maxOps
+
+lightest :: Integer -> Integer -> Expr
+lightest n maxOps = snd $ minimumBy (\(_, e1) (_, e2) -> compare (weight e1) (weight e2)) $ run n maxOps
+
+-- skify :: Expr -> SKI (ChurchNumeral Integer)
+-- skify (a :+ b) = add' :- skify a :- skify b
+-- skify (a :* b) = mul' :- skify a :- skify b
+
+-- skify (a :^ b) = exp' :- skify a :- skify b
+
+-- skify (Val i) = i
+
+-- TODO implement dijkstras, first with # ops then with weight
+
+-- expr, val of expr, weight of expr
+-- type Dict = [(Expr, Int, Int)]
+-- nr and # ops and fixed
+type Amount = Integer
+
+type Value = Integer
+
+type Fixed = Bool
+
+type Dict = [((Value, Amount), Fixed)]
+
+ops' :: [Value -> Value -> Value]
+ops' = [(+), (*), (^), flip (^)]
+
+goal :: Value
+goal = 4096
+
+step :: Dict -> Either Dict Dict
+step dict = do
+  ((smol, amt), dict') <- least dict
+  -- TODO stop condition if all overshot
+  let new = [((val `op` smol, amount + amt + 1), False) | op <- ops', ((val, amount), f) <- dict', f]
+  return $ dict' <> new
+
+least :: Dict -> Either Dict ((Value, Amount), Dict)
+least dict =
+  case sorted of
+    ((v, amt), _) : _ ->
+      if v == goal
+        then Left $ res
+        else return ((v, amt), res)
+      where
+        res = swap v amt
+    _ -> error "Empty list"
+  where
+    (unfixed, fixed) =
+      partition (not . snd) dict
+    sorted =
+      sortBy (compare `on` (snd . fst)) unfixed
+    swap v op = fixed ++ ((v, op), True) : tail unfixed
+
+run' :: [Integer] -> Either Dict Dict
+run' nrs = go $ (\nr -> ((nr, 0), False)) <$> nrs
+  where
+    go v = step v >>= go
+
+-- & head
+-- & minimumBy (compare `on` (snd . fst))
+-- & fst . fst
+
+-- shortest :: Integer -> Whole
+-- shortest goal = go (I.fromList [], M.fromList [(1, 0)])
+--   where
+
+-- go :: Whole -> Whole
+-- go dict =
+--   go $
+--     dict
+--       <> let l = least dict
+--           in -- TODO make commutative for ^
+--              -- TODO stop condition if all overshot
+--              [(val `op` l, amount + 1) | op <- ops', (val, amount) <- dict]
+
+-- least :: Dict -> Integer
+-- least dict = minimumBy (comparing fst) dict

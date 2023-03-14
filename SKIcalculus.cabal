@@ -30,6 +30,7 @@ library
       Core
       Core2
       Hello
+      Interview
       List
       Nat
   other-modules:
@@ -43,6 +44,7 @@ library
     , free
     , mtl
     , parsec
+    , pqueue
     , recursion-schemes
     , text
   default-language: Haskell2010
@@ -59,6 +61,7 @@ executable SKIcalculus-exe
     , free
     , mtl
     , parsec
+    , pqueue
     , recursion-schemes
     , text
   default-language: Haskell2010
@@ -76,6 +79,7 @@ test-suite SKIcalculus-test
     , free
     , mtl
     , parsec
+    , pqueue
     , recursion-schemes
     , text
   default-language: Haskell2010

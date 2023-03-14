@@ -31,17 +31,17 @@ csucc :: ChurchNumeral a -> ChurchNumeral a
 csucc = s (s (k s) k)
 
 -- Readable to Church encoded
-encode :: Int -> ChurchNumeral a
+encode :: Integer -> ChurchNumeral a
 encode 0 = czero
 encode n = csucc $ encode $ pred n
 
-decode :: ChurchNumeral Int -> Int
+decode :: ChurchNumeral Integer -> Integer
 decode fn = fn succ 0
 
-three :: Int
+three :: Integer
 three = decode $ csucc $ csucc $ csucc czero
 
-fiftyfive :: Int
+fiftyfive :: Integer
 fiftyfive = decode $ encode 55
 
 -- To encode, "a" can be polymorphic since functions represent enumerables regardless of type
@@ -52,30 +52,34 @@ encodeEnum n = csucc $ encodeEnum $ pred n
 decodeEnum :: Enum a => ChurchNumeral a -> a
 decodeEnum fn = fn succ (toEnum 0)
 
--- transform :: ChurchNumeral Char -> ChurchNumeral Int
+-- transform :: ChurchNumeralhar -> ChurchNumeralnt
 -- transform nr fn start = _
 
-seven :: Int
-seven = decodeEnum $ encodeEnum 7
+seven :: Integer
+seven = decodeEnum $ encodeEnum (7 :: Integer)
 
 newline :: Char
 newline = decodeEnum $ encodeEnum '\n'
 
 -- Add
-(@+) :: (a -> b -> c) -> (a -> d -> b) -> a -> d -> c
-(@+) = s (k s) k s (s (k s) k (s (k s) k))
+(@+) :: ChurchNumeral a -> ChurchNumeral a -> ChurchNumeral a
+(@+) = s (k s) (s (k (s (k s) k)))
 
 infixl 6 @+
 
 -- Mul
-(@*) :: (b -> c) -> (a -> b) -> a -> c
+(@*) :: ChurchNumeral a -> ChurchNumeral a -> ChurchNumeral a
 (@*) = s (k s) k
 
 infixl 7 @*
 
 -- Exp
-(@^) :: b -> (b -> c) -> c
-(@^) = s (s (k (s (k s) k)) s) (k k) i
+(@^) :: ChurchNumeral a -> ChurchNumeral (a -> a) -> ChurchNumeral a
+-- (@^) a b = instN $ (s (k (s i)) k) (N a) (N b)
+-- TODO this just applies churchnumeral to itself...
+(@^) = s (k (s i)) k
+
+-- (@^) = undefined
 
 infixr 8 @^
 
@@ -93,24 +97,27 @@ halve ::
   c5
 halve = s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k)
 
-example :: Int
+example :: Integer
 example = decode $ halve $ (e 2 @* e 2) @^ (e 3 @+ e 5)
   where
     e = encode
 
 -- With show instance
-czero' :: SKI (a -> b -> b)
+
+type ChurchNumeral' a = (a -> a) -> a -> a
+
+czero' :: SKI (ChurchNumeral' a)
 czero' = K :- I
 
-csucc' :: SKI (((b -> c) -> a -> b) -> (b -> c) -> a -> c)
+csucc' :: SKI (ChurchNumeral' a -> ChurchNumeral' a)
 csucc' = S :- (S :- (K :- S) :- K)
 
-encodeEnum' :: Enum a => a -> SKI (ChurchNumeral b)
+encodeEnum' :: Enum a => a -> SKI (ChurchNumeral' b)
 encodeEnum' n | fromEnum n == 0 = czero'
 encodeEnum' n = csucc' :- encodeEnum' (pred n)
 
-fiftyfive' :: SKI (ChurchNumeral a)
-fiftyfive' = encodeEnum' (55 :: Int)
+fiftyfive' :: SKI (ChurchNumeral' a)
+fiftyfive' = encodeEnum' (55 :: Integer)
 
 -- fiftyfive' in GHCi prints:
 {-
@@ -119,30 +126,32 @@ fiftyfive' = encodeEnum' (55 :: Int)
 -- Using Show instance of SKI GADT
 
 -- Can now use the printed result for pure SKI version
-fiftyfive'' :: Int
+fiftyfive'' :: Integer
 fiftyfive'' = decode $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))))))))))))))))))))))))))))))))))))))))))))))))))
 
-seven' :: SKI (ChurchNumeral a)
+seven' :: SKI (ChurchNumeral' a)
 seven' = encodeEnum' (7 :: Int)
 
 -- Following printed results from GHCi for pure SKI version
 seven'' :: Int
 seven'' = decodeEnum $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))
 
-newline' :: SKI (ChurchNumeral a)
+newline' :: SKI (ChurchNumeral' a)
 newline' = encodeEnum' '\n'
 
 newline'' :: Char
 newline'' = decodeEnum $ s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))))))))
 
-add' :: SKI ((a -> b -> c) -> (a -> d -> b) -> a -> d -> c)
-add' = S :- (K :- S) :- K :- S :- (S :- (K :- S) :- K :- (S :- (K :- S) :- K))
+add' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
+add' = S :- (K :- S) :- (S :- (K :- (S :- (K :- S) :- K)))
 
-mul' :: SKI ((b -> c) -> (a -> b) -> a -> c)
+mul' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
 mul' = S :- (K :- S) :- K
 
-exp' :: SKI (b -> (b -> c) -> c)
-exp' = S :- (S :- (K :- (S :- (K :- S) :- K)) :- S) :- (K :- K) :- I
+exp' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
+-- TODO fix this
+-- exp' = S :- (K :- (S :- I)) :- K
+exp' = undefined
 
 halve' ::
   SKI
@@ -158,16 +167,16 @@ halve' ::
     )
 halve' = S :- (S :- (S :- I :- (K :- (S :- (S :- (K :- S) :- K) :- (K :- (S :- (S :- (K :- S) :- (S :- (K :- K) :- S)) :- (K :- (S :- (K :- K) :- (S :- (S :- (K :- S) :- K))))))))) :- (K :- (S :- (S :- I :- (K :- (K :- I))) :- (K :- (K :- I))))) :- (K :- K)
 
-example' :: SKI (ChurchNumeral Int)
-example' = halve' :- exp' :- (mul' :- e (2 :: Int) :- e 2) :- (add' :- e 3 :- e 5)
+example' :: SKI (ChurchNumeral' Int)
+example' = halve' :- (exp' :- (mul' :- e (2 :: Int) :- e 2) :- (add' :- e 3 :- e 5))
   where
     e = encodeEnum'
 
 -- From GHCi running example'
-example'' :: Int
+example'' :: Integer
 example'' = decode $ s (s (s i (k (s (s (k s) k) (k (s (s (k s) (s (k k) s)) (k (s (k k) (s (s (k s) k))))))))) (k (s (s i (k (k i))) (k (k i))))) (k k) (s (s (k (s (k s) k)) s) (k k) i) (s (k s) k (s (s (k s) k) (s (s (k s) k) (k i))) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (k s) k s (s (k s) k (s (k s) k)) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))))))
 
 -- Represent 55 as 3^3 * 2 + 1 to shorten original
 -- csucc' (mul' :- (exp' :- (e 3) :- (e 3)) :- (e 2))
-fiftyfive''' :: Int
+fiftyfive''' :: Integer
 fiftyfive''' = decode $ s (s (k s) k) (s (k s) k (s (s (k (s (k s) k)) s) (k k) i (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i)))) (s (s (k s) k) (s (s (k s) k) (s (s (k s) k) (k i))))) (s (s (k s) k) (s (s (k s) k) (k i))))

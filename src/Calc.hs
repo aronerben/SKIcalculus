@@ -2,8 +2,6 @@
 
 module Calc where
 
-import Data.Char
-
 -- SKI combinators
 s :: (a -> b -> c) -> (a -> b) -> a -> c
 s x y z = x z (y z)

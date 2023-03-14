@@ -27,6 +27,7 @@ dependencies:
   - recursion-schemes
   - containers
   - free
+  - pqueue
 
 library:
   source-dirs: src
