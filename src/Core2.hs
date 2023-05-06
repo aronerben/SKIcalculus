@@ -335,7 +335,7 @@ insertSortedBy cmp el (hd : tl)
   | otherwise = hd : insertSortedBy cmp el tl
 insertSortedBy _ el [] = [el]
 
--- TODO unfixed should be a sorted map for better performance
+-- TODO unfixed should be a Map that can return the minimal length
 upsertUnfixed :: Dict -> Entry -> Dict
 upsertUnfixed unfixed entry@(val, (len, _)) =
   updateUnfixed $ insertSortedBy (\(_, (len1, _)) (_, (len2, _)) -> len1 < len2) entry
@@ -356,10 +356,8 @@ step goal (fixed@((minEntryVal, (minEntryLength, minEntryRepr)) : _), unfixed) =
   let unfixedNew = Data.List.foldl' updatedUnfixed unfixed cartesian
    in (fixed, unfixedNew)
   where
-    cartesian = do
-      op <- ops
-      entry <- fixed
-      return (op, entry)
+    -- We work with every combo of operations and entries in fixed
+    cartesian = [(op, entry) | op <- ops, entry <- fixed]
     updatedUnfixed unfixedNew ((op, repr), (curEntryVal, (curEntryLength, curEntryRepr))) = do
       let newVal = curEntryVal `op` minEntryVal
       let newLength = curEntryLength + minEntryLength + 1
@@ -372,10 +370,14 @@ step _ _ = error "Empty list yo"
 run' :: Value -> [Value] -> (Dict, Dict)
 run' goal nrs = go ([], start)
   where
+    -- Turn starting list into entries
     start = (\nr -> (nr, (0, show nr))) <$> nrs
+    -- Take head of unfixed, turn into fixed and perform step with that
     go (fixed, hd@(v, _) : unfixed)
+      -- Goal reached => Finish
       | v == goal = partitions
       | otherwise = go $ step goal partitions
       where
         partitions = (hd : fixed, unfixed)
+    -- Unfixed is empty and we did not reach goal => Error
     go _ = error $ "Could not get to " <> show goal <> " with " <> show nrs
