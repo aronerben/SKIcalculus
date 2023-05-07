@@ -374,7 +374,7 @@ step goal (fixed@((minEntryVal, (minEntryLength, minEntryRepr)) : _), unfixed) =
       -- Only add it to the list if below the goal
       -- This prevents sub and div from working, need other way to stop early
       if newVal > goal then unfixedNew else upsertUnfixed unfixedNew newEntry
-step _ _ = error "Empty list yo"
+step _ _ = error "Empty list"
 
 -- Dijkstra's algorithm with growing graph
 -- Technically can run just always with [0] as starting nrs (if we have succ in ops)
