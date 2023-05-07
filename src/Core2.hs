@@ -319,13 +319,19 @@ type Entry = (Value, (Length, Repr))
 -- type Dict = Map Value (Length, Repr)
 type Dict = [Entry]
 
-ops :: [(Value -> Value -> Value, String)]
+ops :: [(Value -> Value -> Value, Repr -> Repr -> Repr, Length -> Length -> Length)]
 ops =
-  [ ((+), "+")
-  , ((*), "*")
-  , ((^), "^")
-  , (flip (^), "^")
+  -- Lengths calculated by hand for each SKI expression
+  [ ((+), binRepr "+", binLength 39)
+  , ((*), binRepr "*", binLength 19)
+  , ((^), binRepr "^", binLength 23)
+  , (flip (^), flip $ binRepr "^", binLength 23)
+  , -- 20 (17 for succ, 2 for parens, 1 for space)
+    (\cur _ -> succ cur, \cur _ -> "(" <> "succ " <> cur <> ")", \_ min' -> min' + 20)
   ]
+  where
+    binRepr op cur min' = "(" <> cur <> op <> min' <> ")"
+    binLength len cur min' = len + cur + min'
 
 -- Insert according to a comparator, assume the list is sorted, else unpredictable results
 -- Good enough for this use case as we build up the list with this function
@@ -351,6 +357,7 @@ upsertUnfixed unfixed entry@(val, (len, _)) =
       -- Element not found => Insert it
       Nothing -> unfixed & inserter
 
+-- One iteration of list growth/updating
 step :: Value -> (Dict, Dict) -> (Dict, Dict)
 step goal (fixed@((minEntryVal, (minEntryLength, minEntryRepr)) : _), unfixed) =
   let unfixedNew = Data.List.foldl' updatedUnfixed unfixed cartesian
@@ -358,20 +365,28 @@ step goal (fixed@((minEntryVal, (minEntryLength, minEntryRepr)) : _), unfixed) =
   where
     -- We work with every combo of operations and entries in fixed
     cartesian = [(op, entry) | op <- ops, entry <- fixed]
-    updatedUnfixed unfixedNew ((op, repr), (curEntryVal, (curEntryLength, curEntryRepr))) = do
+    -- Create new entry for current and minimal entry
+    updatedUnfixed unfixedNew ((op, reprFn, weightFn), (curEntryVal, (curEntryLength, curEntryRepr))) = do
       let newVal = curEntryVal `op` minEntryVal
-      let newLength = curEntryLength + minEntryLength + 1
-      let newRepr = "(" <> curEntryRepr <> repr <> minEntryRepr <> ")"
+      let newLength = weightFn curEntryLength minEntryLength
+      let newRepr = reprFn curEntryRepr minEntryRepr
       let newEntry = (newVal, (newLength, newRepr))
+      -- Only add it to the list if below the goal
       -- This prevents sub and div from working, need other way to stop early
       if newVal > goal then unfixedNew else upsertUnfixed unfixedNew newEntry
 step _ _ = error "Empty list yo"
 
+-- Dijkstra's algorithm with growing graph
+-- Technically can run just always with [0] as starting nrs (if we have succ in ops)
+-- but slower
 run' :: Value -> [Value] -> (Dict, Dict)
 run' goal nrs = go ([], start)
   where
+    --       Fix 0  Succs     Parens   Spaces
+    --         V    V         V        V
+    weight i = 5 + (i * 17) + (i * 2) + i
     -- Turn starting list into entries
-    start = (\nr -> (nr, (0, show nr))) <$> nrs
+    start = (\nr -> (nr, (weight nr, show nr))) <$> nrs
     -- Take head of unfixed, turn into fixed and perform step with that
     go (fixed, hd@(v, _) : unfixed)
       -- Goal reached => Finish

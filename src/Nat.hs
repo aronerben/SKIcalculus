@@ -148,10 +148,12 @@ add' = S :- (K :- S) :- (S :- (K :- (S :- (K :- S) :- K)))
 mul' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
 mul' = S :- (K :- S) :- K
 
-exp' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
+-- exp' :: SKI (ChurchNumeral' a -> ChurchNumeral' a -> ChurchNumeral' a)
 -- TODO fix this
--- exp' = S :- (K :- (S :- I)) :- K
-exp' = undefined
+exp' :: SKI (b -> (b -> c) -> c)
+exp' = S :- (K :- (S :- I)) :- K
+
+-- exp' = undefined
 
 halve' ::
   SKI
