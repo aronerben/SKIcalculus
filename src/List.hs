@@ -1,7 +1,7 @@
 module List where
 
-import Core
-import Nat
+import Core (SKI (..), i, k, s)
+import Nat (ChurchNumeral, encodeEnum)
 
 nilSKI :: a -> b -> b
 nilSKI = k i
@@ -15,7 +15,7 @@ pairSKI = s (k s) (s (k (s (k s))) (s (k (s (k k))) (s (k (s i)) k)))
 infixr 5 .:.
 
 nrList :: [ChurchNumeral Int]
-nrList = map encodeEnum [1 .. 5]
+nrList = map encodeEnum [(1 :: Integer) .. 5]
 
 chToList :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
 chToList fn = fn (:) []

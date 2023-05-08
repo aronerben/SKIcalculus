@@ -3,13 +3,31 @@
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module Core (s, k, i, SKI (S, K, I, (:-))) where
+module Core (s, k, i, SKI (S, K, I, (:-)), reduce) where
 
-import Control.Monad.Writer
+import Control.Monad.Writer (
+  MonadWriter (tell),
+  Writer,
+  runWriter,
+  when,
+ )
 import Data.Text (Text)
-import Text.Parsec
+import Text.Parsec (
+  ParseError,
+  alphaNum,
+  between,
+  chainl1,
+  char,
+  eof,
+  letter,
+  many,
+  optional,
+  parse,
+  space,
+  spaces,
+  (<|>),
+ )
 import Text.Parsec.Text (Parser)
-import Text.Printf (printf)
 
 -- SKI combinators
 s :: (a -> b -> c) -> (a -> b) -> a -> c
@@ -50,7 +68,6 @@ reduce (S :- x :- y :- z) = reduce (x :- z :- (y :- z))
 reduce (l :- r) = reduce l :- reduce r
 
 -- Lambda calculus to SKI
--- TODO Use catamorphisms Expr (SKI e) -> SKI e, might not be possible
 data Expr
   = Var String
   | Abs String Expr
@@ -67,15 +84,6 @@ instance Show Expr where
   show S' = "s"
   show K' = "k"
   show I' = "i"
-
--- Pretty print
-pp :: Expr -> String
-pp (Var v) = v
-pp (Abs v e) = printf "/%s.%s" v $ pp e
-pp (App e1 e2) = printf "(%s %s)" (pp e1) (pp e2)
-pp S' = "s"
-pp K' = "k"
-pp I' = "i"
 
 -- Check if variable occurs free
 free :: String -> Expr -> Bool
@@ -131,14 +139,14 @@ transform fn expr' = do
     -- Case 4'
     transform' (Abs v1 (Var v2))
       | v1 == v2 =
-        tell [(4, fn I')] >> return I'
+          tell [(4, fn I')] >> return I'
     -- Case 5'
     transform' (Abs v1 (Abs v2 e))
       | free v1 e = do
-        let rule = Abs v1
-        tell [(5, fn $ rule $ Abs v2 e)]
-        abse <- transform (fn . rule) $ Abs v2 e
-        transform fn $ Abs v1 abse
+          let rule = Abs v1
+          tell [(5, fn $ rule $ Abs v2 e)]
+          abse <- transform (fn . rule) $ Abs v2 e
+          transform fn $ Abs v1 abse
     -- Case 6'
     transform' (Abs v (App e1 e2)) = do
       let rule e1' = App (App S' e1')
@@ -153,7 +161,7 @@ run expr' = case (snd <$> runWriter) . transform id <$> parse' expr' of
   Left err -> print err
   Right vs -> mapM_ print vs
 
--- Parser
+-- Lambda Calculus parser
 parens :: Parser a -> Parser a
 parens = between (char '(') (char ')')
 

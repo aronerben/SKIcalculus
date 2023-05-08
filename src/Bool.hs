@@ -1,6 +1,6 @@
 module Bool where
 
-import Core
+import Core (SKI (..), i, k, s)
 
 -- Booleans encoded as Church Booleans
 -- https://en.wikipedia.org/wiki/SKI_combinator_calculus#Boolean_logic
